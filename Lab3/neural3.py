@@ -8,12 +8,12 @@ from keras.applications import InceptionV3
 conv_base = InceptionV3(weights='imagenet',
                   include_top=False,
                   input_shape=(150, 150, 3))
-//conv_base.summary()
+#conv_base.summary()
 
 batch_size = 20
 def extract_features(directory, sample_count):
-    features = np.zeros(shape=(sample_count, 4, 4, 512))
-    labels = np.zeros(shape=(sample_count))
+    features = np.zeros(shape=(sample_count, 3, 3, 2048))
+    labels = np.zeros(shape=(sample_count,5))
     generator = datagen.flow_from_directory(
         directory,
         target_size=(150, 150),
@@ -56,11 +56,11 @@ model.compile(optimizer=optimizers.RMSprop(lr=2e-5),
               metrics=['acc'])
 
 history = model.fit(train_features, train_labels,
-                    epochs=3,
+                    epochs=5,
                     batch_size=20,
                     validation_data=(validation_features, validation_labels))
 
 
-test_loss, test_acc = model.evaluate(test_features, test_labels, use_multiprocessing=True)
+test_loss, test_acc = model.evaluate(test_features, test_labels)
 print(test_loss,test_acc)
 
