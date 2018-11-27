@@ -3,7 +3,9 @@ from keras import models
 from keras.preprocessing.image import ImageDataGenerator
 from keras import optimizers
 import numpy as np
+from sklearn.metrics import classification_report, confusion_matrix
 from keras.applications import InceptionV3
+import pickle
 
 conv_base = InceptionV3(weights='imagenet',
                   include_top=False,
@@ -38,9 +40,17 @@ train_dir = 'Datasets/train'
 validation_dir = 'Datasets/validation'
 test_dir = 'Datasets/test'
 
-train_features, train_labels = extract_features(train_dir, 2593)
-validation_features, validation_labels = extract_features(validation_dir, 865)
-test_features, test_labels = extract_features(test_dir, 865)
+noFeatures = False
+if noFeatures:
+    train_features, train_labels = extract_features(train_dir, 2593)
+    validation_features, validation_labels = extract_features(validation_dir, 865)
+    test_features, test_labels = extract_features(test_dir, 865)
+
+    with open('feature.pickle', 'wb') as f:
+        pickle.dump((train_features, train_labels, validation_features, validation_labels, test_features, test_labels), f)
+else:
+    with open('feature.pickle', 'rb') as f:
+        (train_features, train_labels, validation_features, validation_labels, test_features, test_labels) = pickle.load(f)
 
 train_features = np.reshape(train_features, (2593, 3 * 3 * 2048))
 validation_features = np.reshape(validation_features, (865, 3 * 3 * 2048))
@@ -63,4 +73,8 @@ history = model.fit(train_features, train_labels,
 
 test_loss, test_acc = model.evaluate(test_features, test_labels)
 print(test_loss,test_acc)
-
+Y_pred = model.predict(test_features)
+y_pred = np.argmax(Y_pred, axis=1)
+y_true = np.argmax(test_labels, axis=1)
+print('Confusion Matrix')
+print(confusion_matrix(y_true, y_pred))
