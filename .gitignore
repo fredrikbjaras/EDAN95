@@ -1,6 +1,5 @@
+*.pickle
 
-# Created by https://www.gitignore.io/api/java,macos,pycharm,windows,eclipse
-# Edit at https://www.gitignore.io/?templates=java,macos,pycharm,windows,eclipse
 
 ### Eclipse ###
 
