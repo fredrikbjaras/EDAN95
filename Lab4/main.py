@@ -97,29 +97,32 @@ def load(file):
 def print_result(Y):
     test_file = 'Datasets/eng.test'
     test_sentences = open(test_file).read().strip()
+    text_file = open("result.txt", "w")
     rows = test_sentences.splitlines()
-    for row in rows:
-        if len(row) != 0:
-            words = row.split()
-            pos = words[1]
-            out = words[0] + ' ' + words[1] + ' ' + words[2] + ' ' + chunks[pos] + '\n'
-            text_file.write(out)
-        else:
-            text_file.write('\n')
-    f = open("result.txt", "a")
     i = 0
     j = 0
-    for sentence in test_sentences: o
-        f.write(sentence)
-        i+=1
-    f.close()
+    for row in rows:
+        if len(row) != 0:
+            out = row + ' '
+            pred = Y[i][j]
+            if pred is None:
+                pred = 'O'
+            out += pred
+            out += '\n'
+            text_file.write(out)
+            j += 1
+        else:
+            i += 1
+            j = 0
+            text_file.write('\n')
+    text_file.close()
 
 
 if __name__ ==  '__main__':
 
     OPTIMIZER = 'rmsprop'
     BATCH_SIZE = 128
-    EPOCHS = 2
+    EPOCHS = 4
     EMBEDDING_DIM = 100
     MAX_SEQUENCE_LENGTH = 150
     LSTM_UNITS = 512
@@ -160,9 +163,9 @@ if __name__ ==  '__main__':
     print('First sentences, word indices', X_idx[:3])
     print('First sentences, NER indices', Y_idx[:3])
 
-    # print(comp_cosines('table', embeddings_dict))
-    # print(comp_cosines('france', embeddings_dict))
-    # print(comp_cosines('sweden', embeddings_dict))
+    print(comp_cosines('table', embeddings_dict))
+    print(comp_cosines('france', embeddings_dict))
+    print(comp_cosines('sweden', embeddings_dict))
 
     X = pad_sequences(X_idx)
     Y = pad_sequences(Y_idx)
@@ -186,7 +189,8 @@ if __name__ ==  '__main__':
     Y_dev = pad_sequences(Y_idx_dev)
     Y_train_dev = to_categorical(Y_dev, num_classes=len(ner) + 2)
 
-    NoModel = False
+    NoModel = True
+    model_name = 'test.h5'
     if NoModel:
 
         model = models.Sequential()
@@ -197,8 +201,10 @@ if __name__ ==  '__main__':
         model.layers[0].set_weights([embedding_matrix])
         # The default is True
         model.layers[0].trainable = True
-        # model.add(SimpleRNN(100, return_sequences=True))
-        # model.add(Bidirectional(SimpleRNN(100, return_sequences=True)))
+        #model.add(SimpleRNN(100, return_sequences=True))
+        model.add(layers.Dropout(0.5))
+        #model.add(Bidirectional(SimpleRNN(100, return_sequences=True)))
+        model.add(Bidirectional(LSTM(100, return_sequences=True)))
         model.add(Bidirectional(LSTM(100, return_sequences=True)))
         model.add(Dense(NB_CLASSES + 2, activation='softmax'))
 
@@ -208,43 +214,45 @@ if __name__ ==  '__main__':
         model.summary()
 
         model.fit(X, Y_train, validation_data=(X_dev,Y_train_dev), epochs=EPOCHS, batch_size=BATCH_SIZE)
-        model.save('NER_LSTM.h5')
+        model.save(model_name)
     else:
-        model = load_model('NER_LSTM.h5')
+        model = load_model(model_name)
+        model.summary()
 
-        # In X_dict, we replace the words with their index
-        X_test_cat, Y_test_cat = build_sequences(test_dict)
-        # We create the parallel sequences of indexes
-        X_test_idx = to_index(X_test_cat, idx_words, len(X_test_cat))
-        Y_test_idx = to_index(Y_test_cat, idx_ner, len(Y_test_cat))
-        print('X[0] test idx', X_test_idx[0])
-        print('Y[0] test idx', Y_test_idx[0])
+    # In X_dict, we replace the words with their index
+    X_test_cat, Y_test_cat = build_sequences(test_dict)
+    # We create the parallel sequences of indexes
+    X_test_idx = to_index(X_test_cat, idx_words, len(X_test_cat))
+    Y_test_idx = to_index(Y_test_cat, idx_ner, len(Y_test_cat))
+    print('X[0] test idx', X_test_idx[0])
+    print('Y[0] test idx', Y_test_idx[0])
 
-        X_test_padded = pad_sequences(X_test_idx)
-        Y_test_padded = pad_sequences(Y_test_idx)
-        print('X[0] test idx passed', X_test_padded[0])
-        print('Y[0] test idx padded', Y_test_padded[0])
-        # One extra symbol for 0 (padding)
-        Y_test_padded_vectorized = to_categorical(Y_test_padded,
-                                                  num_classes=len(ner) + 2)
-        print('Y[0] test idx padded vectorized', Y_test_padded_vectorized[0])
-        print(X_test_padded.shape)
-        print(Y_test_padded_vectorized.shape)
+    X_test_padded = pad_sequences(X_test_idx)
+    Y_test_padded = pad_sequences(Y_test_idx)
+    print('X[0] test idx passed', X_test_padded[0])
+    print('Y[0] test idx padded', Y_test_padded[0])
+    # One extra symbol for 0 (padding)
+    Y_test_padded_vectorized = to_categorical(Y_test_padded,
+                                              num_classes=len(ner) + 2)
+    print('Y[0] test idx padded vectorized', Y_test_padded_vectorized[0])
+    print(X_test_padded.shape)
+    print(Y_test_padded_vectorized.shape)
 
-        test_loss, test_acc = model.evaluate(X_test_padded, Y_test_padded_vectorized)
-        print('Loss:', test_loss)
-        print('Accuracy:', test_acc)
+    test_loss, test_acc = model.evaluate(X_test_padded, Y_test_padded_vectorized)
+    print('Loss:', test_loss)
+    print('Accuracy:', test_acc)
 
-        pred = model.predict(X_test_padded)
+    pred = model.predict(X_test_padded)
 
-        pos_pred_num = []
-        for sent_nbr, sent_pos_predictions in enumerate(pred):
-            pos_pred_num += [sent_pos_predictions[-len(X_test_cat[sent_nbr]):]]
+    pos_pred_num = []
+    for sent_nbr, sent_pos_predictions in enumerate(pred):
+        pos_pred_num += [sent_pos_predictions[-len(X_test_cat[sent_nbr]):]]
 
-        pos_pred = []
-        for sentence in pos_pred_num:
-            pos_idx = list(map(np.argmax, sentence))
-            pos_cat = list(map(rev_idx_ner.get, pos_idx))
-            pos_pred += [pos_cat]
+    pos_pred = []
+    for sentence in pos_pred_num:
+        pos_idx = list(map(np.argmax, sentence))
+        pos_cat = list(map(rev_idx_ner.get, pos_idx))
+        pos_pred += [pos_cat]
 
-        print_result(pos_pred)
+    #print(pos_pred)
+    print_result(pos_pred)
